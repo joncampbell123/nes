@@ -1,2 +1,0 @@
-; rom1.asm
-Start                            = $E000
