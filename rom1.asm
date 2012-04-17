@@ -1,19 +1,16 @@
 
-.inesprg	1
-.ineschr	1
-.inesmap	0
-.inesmir	1
+*= $8000
 
-.bank		0
-.org		$0x8000
-Start
+.start2		jmp	.start2
 
-.bank		1
-.org		$0xFFFA
-.dw		Start
-.dw		Start
-.dw		Start
+*= $c000
 
-.bank		2
-.org		$0x0000
+.start		jmp	.start2
+
+*= $fffa
+		!word	.start		; NMI
+		!word	.start		; Power on/reset
+		!word	.start		; BRK handler
+
+; == 32K
 
