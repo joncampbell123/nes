@@ -10,4 +10,4 @@ rom1.nes: rom1.raw rom1.nes.hdr.raw
 	cat rom1.nes.hdr.raw rom1.raw >$@
 
 clean:
-	rm -v *.nes *.o65 *.fns *.deb *.raw
+	rm -fv *.nes *.o65 *.fns *.deb *.raw
