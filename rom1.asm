@@ -13,16 +13,6 @@ PUTS_REP_COUNT = $205
 *= $8000
 
 .start2
-; make some noise
-		lda	#$01		; square 1
-		sta	$4015
-		lda	#$08		; period low
-		sta	$4002
-		lda	#$02		; period high
-		sta	$4003
-		lda	#$bf		; volume
-		sta	$4000
-
 		jsr	.wait_for_vblank
 
 		lda	#$28		; name table at $2000 not vertical write sprite pattern at $1000 screen pattern at $0000 sprite 8x16
@@ -44,42 +34,14 @@ PUTS_REP_COUNT = $205
 		lda	#$20		; PPU[3] = white
 		ldy	#$03
 		jsr	.write_ppu_palette
-
-; clear the screen
-		lda	#$21		; Y:X = $2000 (row = 0 col 0)
-		sta	PUTS_PAGE
-		lda	#$04
-		sta	PUTS_OFFSET
-		lda	#$80		; 128 x 8 writes = 1K
-		sta	PUTS_REP_COUNT
-.clearscreen_loop:
-		pha			; SAVE A
-		jsr	.wait_for_vblank; wait for retrace due to fucked up PPU design
-		lda	#$41		; load A = what to write
-		jsr	.puts_write	; first PPU write to get things started
-		sta	$2007		; blast the next 8
-		sta	$2007
-		sta	$2007
-		sta	$2007
-		sta	$2007
-		sta	$2007
-		sta	$2007
-		lda	PUTS_OFFSET
-		clc	
-		adc	#$07
-		sta	PUTS_OFFSET
-		lda	PUTS_PAGE
-		adc	#$00
-		sta	PUTS_PAGE
-		pla			; RESTORE A
-		clc
-		sbc	#$01		; A--
-		bne	.clearscreen_loop
+		jsr	.clear_nametable
 
 ; set up printout
-		lda	#$21		; Y:X = $2104 (row = 4 col 4)
+		lda	#$0C		; chars per vblank
+		sta	PUTS_REP_COUNT
+		lda	#$20		; Y:X = $20C3 (row = 6 col 3)
 		sta	PUTS_PAGE
-		lda	#$04
+		lda	#$C3
 		sta	PUTS_OFFSET
 		sta	PUTS_LINE_OFFSET
 		lda	#(test_string >> 8)
@@ -91,6 +53,11 @@ PUTS_REP_COUNT = $205
 .printloop:	jsr	.puts_read	; -> A = byte read from PUTS_SRC
 		beq	.printloop_end	; break loop if zero
 		jsr	.puts_write_fmt	; write A to PUTS_PAGE:PUTS_OFFSET
+		lda	PUTS_REP_COUNT
+		sec			; FIXME: Are you serious??? SBC will not subtract carry if carry set?
+		sbc	#$01
+		sta	PUTS_REP_COUNT
+		bcs	.printloop
 
 ; make sure the "pan" register points at (0,0)
 ; if FCEUX emulation is any indication whatever PPU address we write to becomes where the PPU draws from?!?
@@ -98,18 +65,37 @@ PUTS_REP_COUNT = $205
 		sta	$2005
 		sta	$2005
 
-		jsr	.wait_for_vblank; wait for vblank
+		lda	#$0C		; chars per vblank
+		sta	PUTS_REP_COUNT
+		jsr	.wait_for_vblank
 
 		jmp	.printloop
 .printloop_end:
+
+; make sure the "pan" register points at (0,0)
+; if FCEUX emulation is any indication whatever PPU address we write to becomes where the PPU draws from?!?
+		lda	#$00
+		sta	$2005
+		sta	$2005
+
+		jsr	.wait_for_vblank
 
 ; stop
 .stophere	jmp	.stophere
 
 ; data
-test_string	!text	"ABCDEFGHIJKLMNOPQRSTUVWXYZ",10
+test_string	!text	"HOMEBREW NES ROM #1",10
+		!text	"-------------------",10
+		!text	$1F,"2012 THE GREAT CODEHOLIO",10
+		!text	10
 		!text	"ABCDEFGHIJKLMNOPQRSTUVWXYZ",10
-		!text	"ABCDEFGHIJKLMNOPQRSTUVWXYZ",10
+		!text	"abcdefghijklmnopqrstuvwxyz",10
+		!text	",./!?",10
+		!text	10
+		!text	"NES Test rom #1, basic PPU",10
+		!text	"6502 asm with ASCII text",10
+		!text	10
+		!text	"<<<== ASCII ART TOO ==>>>",10
 		!byte	0
 
 *= $c000
@@ -208,6 +194,59 @@ test_string	!text	"ABCDEFGHIJKLMNOPQRSTUVWXYZ",10
 		pla
 		sty	$2006
 		sta	$2007
+		rts
+
+; clear the screen
+.clear_nametable:
+		lda	#$20		; Y:X = $2000 (row = 0 col 0)
+		sta	PUTS_PAGE
+		lda	#$00
+		sta	PUTS_OFFSET
+		lda	#$3C		; 60 x 32 writes = $2000-$237F
+		sta	PUTS_REP_COUNT
+.clearscreen_loop:
+		jsr	.wait_for_vblank; wait for retrace due to fucked up PPU design
+		lda	#$00		; load A = what to write
+		jsr	.puts_write	; first PPU write to get things started
+
+		sta	$2007		; blast the next 31
+		sta	$2007
+		sta	$2007
+
+; that leaves 28, so do 7 x 4 writes
+		pha
+		tax
+		cld
+		lda	#$07
+.clearscreen_inloop:
+		stx	$2007
+		stx	$2007
+		stx	$2007
+		stx	$2007
+		sbc	#$01
+		bcs	.clearscreen_inloop
+
+; make sure the "pan" register points at (0,0)
+; if FCEUX emulation is any indication whatever PPU address we write to becomes where the PPU draws from?!?
+		lda	#$00
+		sta	$2005
+		sta	$2005
+
+		pla
+
+		lda	PUTS_OFFSET
+		clc	
+		adc	#$1F
+		sta	PUTS_OFFSET
+		lda	PUTS_PAGE
+		adc	#$00
+		sta	PUTS_PAGE
+
+		cld
+		lda	PUTS_REP_COUNT
+		sbc	#$01		; A--
+		sta	PUTS_REP_COUNT
+		bne	.clearscreen_loop
 		rts
 
 .wait_for_vblank
