@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-$project = "dos";
+$project = "nes";
 if ($project eq "") {
 	$i = rindex($url,'/');
 	if ($i < 0) {$i = 0;}
