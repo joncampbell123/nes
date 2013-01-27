@@ -43,10 +43,10 @@ if (!( -f "$filename.xz" )) {
 
 	# build the list
 	my $list = '',$fn;
-	open(XX,"for i in dos86s dos86l dos86m dos86c dos386f; do echo \$i; find -iname \$i; done |") || die;
+	open(XX,"for i in \\*.nes; do echo \$i; find -iname \$i; done |") || die;
 	while ($fn = <XX>) {
 		chomp $fn;
-		next unless -d $fn;
+		next unless -f $fn;
 #		print "$fn\n";
 		$list .= "dos/$fn ";
 	}
