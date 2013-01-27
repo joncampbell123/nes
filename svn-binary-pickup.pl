@@ -48,7 +48,7 @@ if (!( -f "$filename.xz" )) {
 		chomp $fn;
 		next unless -f $fn;
 #		print "$fn\n";
-		$list .= "dos/$fn ";
+		$list .= "nes/$fn ";
 	}
 	close(XX);
 	die if $list eq '';
